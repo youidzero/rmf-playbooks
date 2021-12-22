@@ -1,0 +1,35 @@
+---
+- hosts: all
+  become: yes 
+
+  vars:
+    dat_filename: avvdat-10198.tar
+    dat_vers_num: 10198
+
+  tasks: 
+   - name: create DAT directory
+     file: path=/var/www/html/STIGS7/dat state=directory
+
+   - name: copy DAT to /var/www/html/STIGS7/dat
+     copy:
+       src: '/home/$USERNAME/{{ dat_filename }}'
+       dest: /var/www/html/
+       mode: '0644'
+
+   - name: "Print DAT version and register result"
+     register: datvers
+     shell: "/opt/NAI/LinuxShield/bin/nails -v | grep 'Virus definition' | awk '{print $4}' | cut -f1 -d'.'"
+
+   - set_fact:
+       result: "{{ datvers.stdout }}"
+
+# commented out for development purposes when troubleshooting   
+   - debug: 
+       msg: "{{ datvers.stdout }}"
+
+   - debug: 
+       msg: "System {{ inventory_hostname }} has DAT version {{ datvers.stdout }} installed."
+     when: datvers.stdout is version(dat_vers_num,'lt')
+
+   - import_tasks: mcafee-dat-update.yml
+     when: datvers.stdout is version(dat_vers_num,'lt')
