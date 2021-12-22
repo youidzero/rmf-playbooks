@@ -1,0 +1,80 @@
+---
+- hosts: all
+  become: yes
+  
+  tasks:
+  - name: make a temp dir
+    file: path=/tmp/vse state=directory
+
+  - name: Download the latest engine zip file and extract in /tmp
+    unarchive:
+       src: /home/$USERNAME/dev/McAfee/engine/epo6300lnx.zip
+       dest: /tmp/vse
+       
+  - name: Stop CMA and Nails service
+    shell: /etc/init.d/nails stop && /etc/init.d/cma stop
+    args:
+      executable: /bin/bash
+
+  - name: remove old engine scan files
+    raw: rm -rf /opt/NAI/LinuxShield/engine/lib/*
+
+  - name: Unzip avengine64.zip
+    unarchive:
+      src: /tmp/vse/avengine64.zip
+      dest: /tmp/vse/
+      remote_src: yes
+
+  - name: Copy new engine files to /opt/NAI/LinuxShield/engine/lib/
+    copy:
+      src: '{{ item }}'
+      dest: '/opt/NAI/LinuxShield/engine/lib/'
+      remote_src: yes
+      owner: root
+      group: nailsgroup
+      mode: '0740'
+    loop:
+        - '/tmp/vse/config.dat'
+        - '/tmp/vse/signlic.txt'
+        - '/tmp/vse/liblnxfv.so.4'
+
+  - name: Create a symbolic link
+    file:
+      src: /opt/NAI/LinuxShield/engine/lib/liblnxfv.so.4
+      dest: /opt/NAI/LinuxShield/engine/lib/liblnxfv.so
+      owner: root
+      group: nailsgroup
+      state: link
+
+  - name: Start CMA and Nails service
+    shell: /etc/init.d/nails start && /etc/init.d/cma start
+    args:
+       executable: /bin/bash
+  - name: Download engine zip file and extract in /tmp
+    unarchive:
+       src: /home/$USERNAME/dev/McAfee/engine/CM-218036-McAfeeVSEForLinux-2.0.3.29216-HF1172954.zip
+       dest: /tmp/vse
+
+  - name: extract McAfeeVSEForLinux-2.0.3.<build_number>-HF1172954-release.tar.gz
+    unarchive:
+        src: /tmp/vse/McAfeeVSEForLinux-2.0.3.29216-HF1172954/McAfeeVSEForLinux-2.0.3.29216-HF1172954-release.tar.gz
+        dest: /tmp/vse/McAfeeVSEForLinux-2.0.3.29216-HF1172954
+        remote_src: yes
+
+  - name: extract McAfeeVSEForLinux-2.0.3.<build_number>-HF1172954.tar.gz
+    unarchive:
+        src: /tmp/vse/McAfeeVSEForLinux-2.0.3.29216-HF1172954/McAfeeVSEForLinux-2.0.3.29216-HF1172954.tar.gz
+        dest: /tmp/vse/McAfeeVSEForLinux-2.0.3.29216-HF1172954
+        remote_src: yes
+
+  - name: Run setupHF
+    shell: /tmp/vse/McAfeeVSEForLinux-2.0.3.29216-HF1172954/setupHF
+    args:
+      executable: /bin/bash
+
+  - name: clean up directories
+    file:
+       path: "{{ item }}"
+       state: absent
+    loop:
+        - "/tmp/vse"
