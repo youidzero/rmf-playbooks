@@ -1,0 +1,21 @@
+---
+   - name: stop the nails service
+     service: name=nails state=stopped
+
+   - name: Download latest DAT file
+     unarchive: 
+       src: 'http://<IP_ADDRESS>/{{ dat_filename }}'
+       dest: /opt/NAI/LinuxShield/engine/dat/
+       remote_src: yes
+
+   - name: start the nails service
+     service: name=nails state=started
+
+   - name: Print DAT version after update
+     shell: /opt/NAI/LinuxShield/bin/nails -v |grep 'Virus definition files'
+     register: dat_vers_after
+     tags: print-dat
+
+   - debug:
+       var: dat_vers_after.stdout
+     tags: print-dat
