@@ -1,0 +1,33 @@
+---
+- hosts: all
+  become: yes 
+  
+  vars:
+    scap_dir: DEC2021-SCAP
+  
+  tasks: 
+   - name: "Find the file path for the XCCDF file"
+     find:
+        paths: "/root/{{ scap_dir }}"
+        patterns: '*XCCDF*3*5*.xml'
+        recurse: yes
+     register: file_check
+
+   - set_fact:
+       result: "{{ file_check }}"
+        
+   - debug:
+       msg: "{{ file_check }}"
+
+   - name: Report the file if missing
+     debug:
+       msg: "The XCCDF file does not exist"
+     when: file_check.matched == 0
+
+   - name: Report the file if not missing
+     debug:
+       msg: "The file {{ file_check.files[0].path }} does exist"
+     when: file_check.matched > 0
+
+   - import_tasks: scc.yml
+     when: file_check.matched == 0  
