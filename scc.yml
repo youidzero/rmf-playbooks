@@ -1,0 +1,55 @@
+---
+   - name: Ensure SCAP directory is created on the ansible controller
+     file: path="/home/$USERNAME/SCAP/{{ scap_dir }}" state=directory mode=0700 owner=$USERNAME group=wheel
+     delegate_to: 127.0.0.1
+
+   - name: Remove all previous scap content
+     raw: /usr/bin/rm -rf /opt/scc/Resources/Content/SCAP12_Content/*.xml
+     args:
+       executable: /bin/bash
+
+   - name: Copy U_RHEL_7_V3R5_STIG_SCAP_1-2_Benchmark.xml
+     copy:
+       src: /home/$USERNAME/dev/files/U_RHEL_7_V3R5_STIG_SCAP_1-2_Benchmark.xml
+       dest: /opt/scc/Resources/Content/SCAP12_Content/
+       mode: '0644'
+       owner: root
+       group: root
+
+   - name: Make dir for scanning logs
+     file: path="/root/{{ scap_dir }}" state=directory mode=0700 owner=root group=root
+
+   - name: Turn nails service off before scanning
+     service: name=nails state=stopped   
+
+   - name: initialize scc
+     shell: /opt/scc/cscc -ea
+
+   - name: Set the security profiles
+     shell: /opt/scc/cscc --setProfileAll <YOUR_SECURITY_LEVEL>
+
+   - name: execute scc scan (this takes a while)
+     shell: /opt/scc/cscc -u "/root/{{ scap_dir }}"
+
+   - name: Turn nails service on after scanning
+     service: name=nails state=started
+
+   - name: Find the XCCDF file 
+     find:
+       paths: "/root/{{ scap_dir }}"
+       patterns: '*XCCDF*3*.xml'
+       recurse: yes
+     register: file_match
+     tags: grab-xccdf
+
+   - name: print out find result
+     debug:
+       msg: "{{ file_match.files[0].path }}"
+     tags: grab-xccdf        
+
+   - name: Fetch XCCDF file 
+     fetch:
+       src: "{{ file_match.files[0].path }}"
+       dest: "/home/$USERNAME/SCAP/{{ scap_dir }}/"
+       flat: yes
+     tags: grab-xccdf
